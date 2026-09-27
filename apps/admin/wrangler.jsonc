@@ -1,0 +1,13 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "vog-admin",
+  "compatibility_date": "2026-09-27",
+  "assets": {
+    "directory": "./dist",
+    // React Router handles /<slug>; unknown paths must serve index.html.
+    "not_found_handling": "single-page-application"
+  },
+  "observability": { "enabled": true }
+  // Once avisionofgood.com is on Cloudflare, uncomment to attach the domain:
+  // "routes": [{ "pattern": "admin.avisionofgood.com", "custom_domain": true }]
+}
