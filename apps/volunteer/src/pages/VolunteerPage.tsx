@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { VolunteerForm } from '@/components/forms/VolunteerForm'
 import { PageShell } from '@/components/layout/PageShell'
+import { ContactCard } from '@/components/volunteer/ContactCard'
 import { EventHero } from '@/components/volunteer/EventHero'
 import { SuccessState } from '@/components/volunteer/SuccessState'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -12,5 +13,5 @@ export function VolunteerPage() { const { eventSlug } = useParams(); const { eve
   if (error === 'invalid_slug' || error === 'not_found') return <NotFoundPage title="Event not found" message="We could not find an active volunteer event for this link. Please check the URL you were given." />
   if (error === 'inactive') return <NotFoundPage title="This event is closed" message="This event is not currently accepting volunteer applications." />
   if (error === 'unavailable' || !event) return <NotFoundPage title="Volunteer form unavailable" message="We could not load this event right now. Please try again in a few minutes." />
-  return <PageShell>{submitted ? <SuccessState eventName={event.name} eventSlug={event.slug} volunteer={submitted} onReturn={() => setSubmitted(null)} /> : <><EventHero event={event}/><VolunteerForm event={event} onSuccess={setSubmitted}/></>}</PageShell>
+  return <PageShell>{submitted ? <SuccessState eventName={event.name} eventSlug={event.slug} volunteer={submitted} onReturn={() => setSubmitted(null)} /> : <><EventHero event={event}/><VolunteerForm event={event} onSuccess={setSubmitted}/><ContactCard event={event}/></>}</PageShell>
 }
