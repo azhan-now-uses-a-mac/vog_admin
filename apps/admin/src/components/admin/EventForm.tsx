@@ -5,6 +5,7 @@ import { TextField } from '@/components/ui/TextField'
 import { TextArea } from '@/components/ui/TextArea'
 import { isValidEmail, isValidSlug, slugify } from '@/lib/validation'
 import { uploadEventImage } from '@/services/storageService'
+import { StandardQuestions } from '@/components/admin/StandardQuestions'
 import { VolunteerQuestionsEditor } from '@/components/admin/VolunteerQuestionsEditor'
 import type { AdminEvent, EventFormValues } from '@/types/event'
 
@@ -18,6 +19,7 @@ const EMPTY: EventFormValues = {
   volunteer_requirements: '',
   volunteer_spots: '',
   volunteer_questions: [],
+  volunteer_hidden_fields: [],
   bank_name: '',
   account_name: '',
   account_number: '',
@@ -40,6 +42,7 @@ function fromEvent(event: AdminEvent): EventFormValues {
     volunteer_requirements: event.volunteer_requirements ?? '',
     volunteer_spots: event.volunteer_spots ? String(event.volunteer_spots) : '',
     volunteer_questions: event.volunteer_questions ?? [],
+    volunteer_hidden_fields: event.volunteer_hidden_fields ?? [],
     bank_name: event.bank_name ?? '',
     account_name: event.account_name ?? '',
     account_number: event.account_number ?? '',
@@ -270,6 +273,10 @@ export function EventForm({
             value={values.volunteer_requirements}
             onChange={(e) => set('volunteer_requirements', e.target.value)}
             placeholder={'One per line, e.g.\nModest clothing\nBring your own water bottle\nMust be 18+'}
+          />
+          <StandardQuestions
+            hidden={values.volunteer_hidden_fields}
+            onChange={(hidden) => set('volunteer_hidden_fields', hidden)}
           />
           <VolunteerQuestionsEditor
             questions={values.volunteer_questions}

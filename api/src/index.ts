@@ -22,6 +22,7 @@ import {
   validateDonation,
   validateEvent,
   validateVolunteer,
+  type OptionalStandardField,
   type VolunteerQuestion,
 } from './validation'
 
@@ -56,6 +57,7 @@ type EventRow = {
   volunteer_requirements: string | null
   volunteer_spots: number | null
   volunteer_questions: VolunteerQuestion[]
+  volunteer_hidden_fields: OptionalStandardField[]
   qr_code_path: string | null
   bank_name: string | null
   account_name: string | null
@@ -69,7 +71,8 @@ type EventRow = {
 }
 
 const EVENT_COLUMNS = `id, name, slug, description, volunteer_description, volunteer_date,
-  volunteer_location, volunteer_requirements, volunteer_spots, volunteer_questions, qr_code_path, bank_name, account_name,
+  volunteer_location, volunteer_requirements, volunteer_spots, volunteer_questions,
+  volunteer_hidden_fields, qr_code_path, bank_name, account_name,
   account_number, payment_instructions, contact_name, contact_email, contact_phone,
   is_active, created_at`
 
@@ -216,14 +219,19 @@ app.post('/volunteers', bodyLimit({ maxSize: 64 * 1024 }), async (c) => {
   if (!body) return c.json({ error: 'invalid_json' }, 400)
   if (!isUuid(body.eventId)) return c.json({ error: 'invalid_event' }, 400)
 
-  const [event] = await query<{ id: string; is_active: boolean; volunteer_questions: VolunteerQuestion[] }>(
-    'select id, is_active, volunteer_questions from public.events where id = $1',
+  const [event] = await query<{
+    id: string
+    is_active: boolean
+    volunteer_questions: VolunteerQuestion[]
+    volunteer_hidden_fields: OptionalStandardField[]
+  }>(
+    'select id, is_active, volunteer_questions, volunteer_hidden_fields from public.events where id = $1',
     [body.eventId],
   )
   if (!event) return c.json({ error: 'not_found' }, 404)
   if (!event.is_active) return c.json({ error: 'inactive' }, 410)
 
-  const { errors, value } = validateVolunteer(body, event.volunteer_questions ?? [])
+  const { errors, value } = validateVolunteer(body, event.volunteer_questions ?? [], event.volunteer_hidden_fields ?? [])
   if (Object.keys(errors).length > 0) return c.json({ error: 'invalid', fields: errors }, 422)
 
   const [row] = await query<{ id: string }>(
@@ -283,6 +291,7 @@ async function saveEvent(body: Record<string, unknown>, id?: string) {
     value.volunteer_requirements,
     value.volunteer_spots,
     JSON.stringify(value.volunteer_questions),
+    JSON.stringify(value.volunteer_hidden_fields),
     value.qr_code_path,
     value.bank_name,
     value.account_name,
@@ -299,18 +308,20 @@ async function saveEvent(body: Record<string, unknown>, id?: string) {
       ? await query<EventRow>(
           `update public.events set name=$1, slug=$2, description=$3, volunteer_description=$4,
              volunteer_date=$5, volunteer_location=$6, volunteer_requirements=$7,
-             volunteer_spots=$8, volunteer_questions=$9::jsonb, qr_code_path=$10,
-             bank_name=$11, account_name=$12, account_number=$13, payment_instructions=$14,
-             contact_name=$15, contact_email=$16, contact_phone=$17, is_active=$18
-           where id = $19 returning ${EVENT_COLUMNS}`,
+             volunteer_spots=$8, volunteer_questions=$9::jsonb, volunteer_hidden_fields=$10::jsonb,
+             qr_code_path=$11, bank_name=$12, account_name=$13, account_number=$14,
+             payment_instructions=$15, contact_name=$16, contact_email=$17, contact_phone=$18,
+             is_active=$19
+           where id = $20 returning ${EVENT_COLUMNS}`,
           [...params, id],
         )
       : await query<EventRow>(
           `insert into public.events (name, slug, description, volunteer_description,
              volunteer_date, volunteer_location, volunteer_requirements, volunteer_spots,
-             volunteer_questions, qr_code_path, bank_name, account_name, account_number,
-             payment_instructions, contact_name, contact_email, contact_phone, is_active)
-           values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+             volunteer_questions, volunteer_hidden_fields, qr_code_path, bank_name, account_name,
+             account_number, payment_instructions, contact_name, contact_email, contact_phone,
+             is_active)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$13,$14,$15,$16,$17,$18,$19)
            returning ${EVENT_COLUMNS}`,
           params,
         )

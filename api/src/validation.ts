@@ -100,6 +100,16 @@ export interface VolunteerQuestion {
   options: string[]
 }
 
+// Standard questions the admin may switch off per event. Name, email, phone
+// and the commitment tick are always asked.
+export const OPTIONAL_STANDARD_FIELDS = ['university', 'course', 'year_of_study', 'area_of_residence', 'driving'] as const
+export type OptionalStandardField = (typeof OPTIONAL_STANDARD_FIELDS)[number]
+
+export function parseHiddenFields(raw: unknown): OptionalStandardField[] {
+  if (!Array.isArray(raw)) return []
+  return OPTIONAL_STANDARD_FIELDS.filter((f) => raw.includes(f))
+}
+
 const QUESTION_ID = /^[a-z0-9_-]{1,40}$/
 const QUESTION_TYPES: QuestionType[] = ['text', 'yes_no', 'choice']
 export const MAX_QUESTIONS = 20
@@ -155,32 +165,39 @@ function validateAnswers(
   return out
 }
 
-export function validateVolunteer(input: Record<string, unknown>, questions: VolunteerQuestion[] = []) {
+export function validateVolunteer(
+  input: Record<string, unknown>,
+  questions: VolunteerQuestion[] = [],
+  hidden: OptionalStandardField[] = [],
+) {
   const errors: Errors = {}
   const fullName = str(input.fullName)
   const email = str(input.email)
   const phone = str(input.phone)
-  const university = str(input.university)
-  const course = str(input.course)
-  const areaOfResidence = str(input.areaOfResidence)
-  const yearOfStudy = str(input.yearOfStudy)
-  const hasLicense = input.hasLicense === true
+  const ask = (f: OptionalStandardField) => !hidden.includes(f)
+  const university = ask('university') ? str(input.university) : null
+  const course = ask('course') ? str(input.course) : null
+  const areaOfResidence = ask('area_of_residence') ? str(input.areaOfResidence) : null
+  const yearOfStudy = ask('year_of_study') ? str(input.yearOfStudy) : null
+  const hasLicense = ask('driving') && input.hasLicense === true
   // A car only counts when there is a licence to drive it.
   const hasCar = hasLicense && input.hasCar === true
   const commitment = input.commitment === true
   const message = optional(input.message)
 
   checkContact(errors, fullName, email, phone)
-  checkLength(errors, 'university', university, 2, 160, 'university')
-  checkLength(errors, 'course', course, 2, 160, 'course')
-  checkLength(errors, 'areaOfResidence', areaOfResidence, 2, 160, 'area of residence')
-  if (!(YEARS_OF_STUDY as readonly string[]).includes(yearOfStudy)) {
+  if (university !== null) checkLength(errors, 'university', university, 2, 160, 'university')
+  if (course !== null) checkLength(errors, 'course', course, 2, 160, 'course')
+  if (areaOfResidence !== null) checkLength(errors, 'areaOfResidence', areaOfResidence, 2, 160, 'area of residence')
+  if (yearOfStudy !== null && !(YEARS_OF_STUDY as readonly string[]).includes(yearOfStudy)) {
     errors.yearOfStudy = 'Please select your year of study.'
   }
-  if (typeof input.hasLicense !== 'boolean') {
-    errors.hasLicense = 'Please tell us whether you have a valid international driving licence.'
-  } else if (hasLicense && typeof input.hasCar !== 'boolean') {
-    errors.hasCar = 'Please tell us whether you have a car.'
+  if (ask('driving')) {
+    if (typeof input.hasLicense !== 'boolean') {
+      errors.hasLicense = 'Please tell us whether you have a valid international driving licence.'
+    } else if (hasLicense && typeof input.hasCar !== 'boolean') {
+      errors.hasCar = 'Please tell us whether you have a car.'
+    }
   }
   if (!commitment) errors.commitment = 'Please confirm you will attend if selected.'
   if (message && message.length > MAX_MESSAGE) errors.message = 'Message is too long.'
@@ -243,6 +260,7 @@ export function validateEvent(input: Record<string, unknown>) {
       volunteer_requirements: volunteerRequirements,
       volunteer_spots: volunteerSpots,
       volunteer_questions: volunteerQuestions,
+      volunteer_hidden_fields: parseHiddenFields(input.volunteer_hidden_fields),
       qr_code_path: optional(input.qr_code_path),
       bank_name: optional(input.bank_name),
       account_name: optional(input.account_name),

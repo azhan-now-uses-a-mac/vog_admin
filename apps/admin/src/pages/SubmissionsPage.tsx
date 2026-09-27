@@ -99,16 +99,20 @@ const VOLUNTEER_COLUMNS: Column<EventVolunteer>[] = [
   {
     key: 'study',
     label: 'University / course',
-    render: (r) => (
-      <span className="block">
-        {r.university}
-        <br />
-        <span className="text-vog-brown/70">{r.course} · {r.year_of_study}</span>
-      </span>
-    ),
-    searchable: (r) => `${r.university} ${r.course} ${r.year_of_study}`,
+    render: (r) => {
+      const detail = [r.course, r.year_of_study].filter(Boolean).join(' · ')
+      if (!r.university && !detail) return <span className="text-vog-brown/40">—</span>
+      return (
+        <span className="block">
+          {r.university}
+          {r.university && detail ? <br /> : null}
+          <span className="text-vog-brown/70">{detail}</span>
+        </span>
+      )
+    },
+    searchable: (r) => `${r.university ?? ''} ${r.course ?? ''} ${r.year_of_study ?? ''}`,
   },
-  { key: 'area_of_residence', label: 'Area', render: (r) => r.area_of_residence, searchable: (r) => r.area_of_residence },
+  { key: 'area_of_residence', label: 'Area', render: (r) => r.area_of_residence ?? <span className="text-vog-brown/40">—</span>, searchable: (r) => r.area_of_residence ?? '' },
   { key: 'has_license', label: 'Licence', render: (r) => <YesNo value={r.has_license} /> },
   { key: 'has_car', label: 'Car', render: (r) => <YesNo value={r.has_car} /> },
   { key: 'commitment_agreed', label: 'Committed', render: (r) => <YesNo value={r.commitment_agreed} /> },

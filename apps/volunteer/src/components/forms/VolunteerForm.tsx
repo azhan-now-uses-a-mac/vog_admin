@@ -9,7 +9,7 @@ import { YesNoField } from '@/components/ui/YesNoField'
 import { toUserMessage } from '@/lib/errors'
 import { MAX_MESSAGE_LENGTH, validateVolunteerForm } from '@/lib/validation'
 import { VolunteerValidationError, packAnswers, submitVolunteer } from '@/services/volunteerService'
-import type { EventRecord, VolunteerQuestion } from '@/types/event'
+import type { EventRecord, OptionalStandardField, VolunteerQuestion } from '@/types/event'
 import { YEARS_OF_STUDY, type FieldErrors, type VolunteerFormValues, type VolunteerInsert, type YesNo } from '@/types/volunteer'
 
 const initialValues: VolunteerFormValues = { fullName: '', email: '', phone: '', university: '', course: '', yearOfStudy: '', areaOfResidence: '', hasLicense: '', hasCar: '', commitment: false, message: '', answers: {} }
@@ -23,6 +23,8 @@ export function VolunteerForm({ event, onSuccess }: { event: EventRecord; onSucc
   // No licence means no car question, so clear any earlier answer.
   function updateLicense(value: VolunteerFormValues['hasLicense']) { setValues((current) => ({ ...current, hasLicense: value, hasCar: value === 'yes' ? current.hasCar : '' })) }
   const hasLicense = values.hasLicense === 'yes'
+  const hidden = event.volunteer_hidden_fields ?? []
+  const ask = (f: OptionalStandardField) => !hidden.includes(f)
   function setAnswer(id: string, value: string) { setValues((current) => ({ ...current, answers: { ...current.answers, [id]: value } })) }
   function renderQuestion(q: VolunteerQuestion) {
     const id = `answer-${q.id}`; const value = values.answers[q.id] ?? ''; const error = errors[`answer:${q.id}`]
@@ -52,12 +54,12 @@ export function VolunteerForm({ event, onSuccess }: { event: EventRecord; onSucc
     <TextField id="fullName" label="Full Name" autoComplete="name" value={values.fullName} onChange={(e) => update('fullName', e.target.value)} error={errors.fullName} required />
     <TextField id="email" label="Email" type="email" autoComplete="email" value={values.email} onChange={(e) => update('email', e.target.value)} error={errors.email} required />
     <TextField id="phone" label="Phone Number" type="tel" autoComplete="tel" value={values.phone} onChange={(e) => update('phone', e.target.value)} error={errors.phone} required />
-    <TextField id="university" label="University" autoComplete="organization" value={values.university} onChange={(e) => update('university', e.target.value)} error={errors.university} required />
-    <TextField id="course" label="Course" value={values.course} onChange={(e) => update('course', e.target.value)} error={errors.course} required />
-    <SelectField id="yearOfStudy" label="Year of Study" options={YEARS_OF_STUDY} placeholder="Select your year" value={values.yearOfStudy} onChange={(e) => update('yearOfStudy', e.target.value)} error={errors.yearOfStudy} required />
-    <TextField id="areaOfResidence" label="Area of Residence" autoComplete="address-level2" value={values.areaOfResidence} onChange={(e) => update('areaOfResidence', e.target.value)} error={errors.areaOfResidence} required />
-    <YesNoField id="hasLicense" label="Do you have a valid international driving licence?" value={values.hasLicense} onChange={updateLicense} error={errors.hasLicense} />
-    {hasLicense ? <YesNoField id="hasCar" label="Do you have a car?" value={values.hasCar} onChange={(v) => update('hasCar', v)} error={errors.hasCar} /> : null}
+    {ask('university') ? <TextField id="university" label="University" autoComplete="organization" value={values.university} onChange={(e) => update('university', e.target.value)} error={errors.university} required /> : null}
+    {ask('course') ? <TextField id="course" label="Course" value={values.course} onChange={(e) => update('course', e.target.value)} error={errors.course} required /> : null}
+    {ask('year_of_study') ? <SelectField id="yearOfStudy" label="Year of Study" options={YEARS_OF_STUDY} placeholder="Select your year" value={values.yearOfStudy} onChange={(e) => update('yearOfStudy', e.target.value)} error={errors.yearOfStudy} required /> : null}
+    {ask('area_of_residence') ? <TextField id="areaOfResidence" label="Area of Residence" autoComplete="address-level2" value={values.areaOfResidence} onChange={(e) => update('areaOfResidence', e.target.value)} error={errors.areaOfResidence} required /> : null}
+    {ask('driving') ? <YesNoField id="hasLicense" label="Do you have a valid international driving licence?" value={values.hasLicense} onChange={updateLicense} error={errors.hasLicense} /> : null}
+    {ask('driving') && hasLicense ? <YesNoField id="hasCar" label="Do you have a car?" value={values.hasCar} onChange={(v) => update('hasCar', v)} error={errors.hasCar} /> : null}
     {(event.volunteer_questions ?? []).map(renderQuestion)}
     <TextArea id="message" label="Message (optional)" value={values.message} onChange={(e) => update('message', e.target.value)} error={errors.message} maxLength={MAX_MESSAGE_LENGTH} placeholder="Anything you would like the organisers to know" />
     <CheckboxField id="commitment" checked={values.commitment} onChange={(v) => update('commitment', v)} error={errors.commitment} label="I understand that if I am selected, I will attend the event and follow the organisers' instructions to the best of my ability." />

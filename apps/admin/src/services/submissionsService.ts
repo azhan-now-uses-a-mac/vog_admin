@@ -38,7 +38,7 @@ export function exportEventVolunteers(event: AdminEvent, rows: EventVolunteer[])
   }
   const csv = toCsv(
     ['Submitted', 'Full name', 'Email', 'Phone', 'University', 'Course', 'Year of study', 'Area of residence', 'International licence', 'Has car', 'Commitment agreed', ...questions.map((q) => q.label), 'Message'],
-    rows.map((r) => [r.created_at, r.full_name, r.email, r.phone, r.university, r.course, r.year_of_study, r.area_of_residence, yesNo(r.has_license), yesNo(r.has_car), yesNo(r.commitment_agreed), ...questions.map((q) => answer(r, q.id)), r.message ?? '']),
+    rows.map((r) => [r.created_at, r.full_name, r.email, r.phone, r.university ?? '', r.course ?? '', r.year_of_study ?? '', r.area_of_residence ?? '', yesNo(r.has_license), yesNo(r.has_car), yesNo(r.commitment_agreed), ...questions.map((q) => answer(r, q.id)), r.message ?? '']),
   )
   download(`${event.slug}-volunteers-${stamp()}.csv`, csv)
 }

@@ -7,6 +7,8 @@ export interface VolunteerQuestion {
   options: string[]
 }
 
+export type OptionalStandardField = 'university' | 'course' | 'year_of_study' | 'area_of_residence' | 'driving'
+
 export interface EventRecord {
   id: string
   name: string
@@ -18,6 +20,7 @@ export interface EventRecord {
   volunteer_requirements: string | null
   volunteer_spots: number | null
   volunteer_questions: VolunteerQuestion[]
+  volunteer_hidden_fields: OptionalStandardField[]
   contact_name: string | null
   contact_email: string | null
   contact_phone: string | null

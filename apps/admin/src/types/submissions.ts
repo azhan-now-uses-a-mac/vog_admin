@@ -20,10 +20,11 @@ export interface EventVolunteer {
   full_name: string
   email: string
   phone: string
-  university: string
-  course: string
-  year_of_study: string
-  area_of_residence: string
+  // Null when the event had that question switched off.
+  university: string | null
+  course: string | null
+  year_of_study: string | null
+  area_of_residence: string | null
   has_license: boolean
   has_car: boolean
   commitment_agreed: boolean

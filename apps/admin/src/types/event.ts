@@ -7,6 +7,9 @@ export interface VolunteerQuestion {
   options: string[]
 }
 
+// Standard application questions the admin can switch off per event.
+export type OptionalStandardField = 'university' | 'course' | 'year_of_study' | 'area_of_residence' | 'driving'
+
 export interface AdminEvent {
   id: string
   name: string
@@ -18,6 +21,7 @@ export interface AdminEvent {
   volunteer_requirements: string | null
   volunteer_spots: number | null
   volunteer_questions: VolunteerQuestion[]
+  volunteer_hidden_fields: OptionalStandardField[]
   qr_code_path: string | null
   qr_code_url: string | null
   bank_name: string | null
@@ -42,6 +46,7 @@ export interface EventFormValues {
   volunteer_requirements: string
   volunteer_spots: string
   volunteer_questions: VolunteerQuestion[]
+  volunteer_hidden_fields: OptionalStandardField[]
   bank_name: string
   account_name: string
   account_number: string
