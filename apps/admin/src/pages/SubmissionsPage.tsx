@@ -11,7 +11,7 @@ import {
   listEventVolunteers,
   paymentMethodLabel,
 } from '@/services/submissionsService'
-import type { AdminEvent } from '@/types/event'
+import type { AdminEvent, VolunteerQuestion } from '@/types/event'
 import type { EventDonation, EventVolunteer, SubmissionKind } from '@/types/submissions'
 
 interface SubmissionsPageProps {
@@ -115,6 +115,28 @@ const VOLUNTEER_COLUMNS: Column<EventVolunteer>[] = [
   { key: 'message', label: 'Message', render: (r) => <Message text={r.message} />, searchable: (r) => r.message ?? '', wide: true },
 ]
 
+// Standard columns plus one per custom question the event defines.
+function volunteerColumns(questions: VolunteerQuestion[]): Column<EventVolunteer>[] {
+  const extra: Column<EventVolunteer>[] = questions.map((q) => ({
+    key: `q:${q.id}`,
+    label: q.label,
+    render: (r) => {
+      const v = r.extra_answers?.[q.id]
+      if (typeof v === 'boolean') return <YesNo value={v} />
+      if (typeof v === 'string' && v) return <span className="whitespace-pre-line">{v}</span>
+      return <span className="text-vog-brown/40">—</span>
+    },
+    searchable: (r) => {
+      const v = r.extra_answers?.[q.id]
+      return typeof v === 'string' ? v : ''
+    },
+  }))
+  // Put the message last so the table reads naturally.
+  const base = VOLUNTEER_COLUMNS.filter((c) => c.key !== 'message')
+  const message = VOLUNTEER_COLUMNS.find((c) => c.key === 'message')!
+  return [...base, ...extra, message]
+}
+
 function Stat({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="rounded-2xl border border-vog-brown/10 bg-white p-4 shadow-sm">
@@ -196,7 +218,10 @@ export function SubmissionsPage({ event, kind, email, onBack }: SubmissionsPageP
   }, [event.id, kind])
 
   const title = kind === 'donations' ? 'Donations' : 'Volunteer applications'
-  const columns = (kind === 'donations' ? DONATION_COLUMNS : VOLUNTEER_COLUMNS) as Column<{ id: string }>[]
+  const columns = useMemo(
+    () => (kind === 'donations' ? DONATION_COLUMNS : volunteerColumns(event.volunteer_questions ?? [])) as Column<{ id: string }>[],
+    [kind, event.volunteer_questions],
+  )
   const allRows: Array<{ id: string }> = kind === 'donations' ? donations : volunteers
 
   const rows = useMemo(() => {

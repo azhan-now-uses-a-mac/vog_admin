@@ -16,6 +16,7 @@ export interface VolunteerInsert {
   has_car: boolean
   commitment_agreed: boolean
   message: string | null
+  extra_answers: Record<string, string | boolean>
 }
 export interface VolunteerFormValues {
   fullName: string
@@ -30,6 +31,10 @@ export interface VolunteerFormValues {
   hasCar: YesNo
   commitment: boolean
   message: string
+  // Answers to the event's extra questions, keyed by question id.
+  // yes_no questions hold a YesNo, the others a string.
+  answers: Record<string, string>
 }
 export type VolunteerField = keyof VolunteerFormValues
-export type FieldErrors = Partial<Record<VolunteerField, string>>
+// Standard fields plus `answer:<question id>` for the extra questions.
+export type FieldErrors = Partial<Record<VolunteerField | `answer:${string}`, string>>

@@ -1,6 +1,18 @@
 import { AppError } from '@/lib/errors'
 import { apiUrl, isApiConfigured } from '@/lib/api'
 import type { FieldErrors, VolunteerFormValues } from '@/types/volunteer'
+import type { VolunteerQuestion } from '@/types/event'
+
+// Turns the form's string answers into what the API stores: booleans for yes/no.
+export function packAnswers(questions: VolunteerQuestion[], answers: Record<string, string>): Record<string, string | boolean> {
+  const out: Record<string, string | boolean> = {}
+  for (const q of questions) {
+    const a = (answers[q.id] ?? '').trim()
+    if (!a) continue
+    out[q.id] = q.type === 'yes_no' ? a === 'yes' : a
+  }
+  return out
+}
 
 export class VolunteerValidationError extends AppError {
   readonly fields: FieldErrors
@@ -15,7 +27,7 @@ const MESSAGES: Record<string, string> = {
   inactive: 'This opportunity is no longer accepting applications.',
 }
 
-export async function submitVolunteer(eventId: string, values: VolunteerFormValues): Promise<{ id: string }> {
+export async function submitVolunteer(eventId: string, values: VolunteerFormValues, questions: VolunteerQuestion[] = []): Promise<{ id: string }> {
   if (!isApiConfigured()) throw new AppError('The volunteer form is temporarily unavailable. Please try again later.')
   let response: Response
   try {
@@ -35,6 +47,7 @@ export async function submitVolunteer(eventId: string, values: VolunteerFormValu
         hasCar: values.hasLicense === 'yes' ? values.hasCar === 'yes' : false,
         commitment: values.commitment,
         message: values.message.trim(),
+        answers: packAnswers(questions, values.answers),
       }),
     })
   } catch (error) {

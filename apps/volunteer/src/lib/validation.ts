@@ -26,6 +26,11 @@ export function validateVolunteerForm(values: VolunteerFormValues, event: EventR
   if (values.hasLicense !== 'yes' && values.hasLicense !== 'no') errors.hasLicense = 'Please choose Yes or No.'
   else if (values.hasLicense === 'yes' && values.hasCar !== 'yes' && values.hasCar !== 'no') errors.hasCar = 'Please choose Yes or No.'
   if (!values.commitment) errors.commitment = 'Please tick this box to submit your application.'
+  for (const q of event.volunteer_questions ?? []) {
+    const a = (values.answers[q.id] ?? '').trim()
+    if (q.required && !a) errors[`answer:${q.id}`] = q.type === 'yes_no' ? 'Please choose Yes or No.' : 'This question is required.'
+    else if (a.length > 500) errors[`answer:${q.id}`] = 'Answer is too long.'
+  }
   if (values.message.length > MAX_MESSAGE_LENGTH) errors.message = 'Message is too long.'
   if (!event.is_active) errors.fullName = 'This event is not currently accepting volunteer applications.'
   return errors

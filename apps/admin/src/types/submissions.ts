@@ -28,6 +28,8 @@ export interface EventVolunteer {
   has_car: boolean
   commitment_agreed: boolean
   message: string | null
+  // Answers to the event's custom questions, keyed by question id.
+  extra_answers: Record<string, string | boolean>
 }
 
 export type SubmissionKind = 'donations' | 'volunteers'

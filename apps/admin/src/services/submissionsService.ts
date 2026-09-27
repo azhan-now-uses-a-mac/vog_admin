@@ -31,9 +31,14 @@ export function exportEventDonations(event: AdminEvent, rows: EventDonation[]) {
 
 export function exportEventVolunteers(event: AdminEvent, rows: EventVolunteer[]) {
   const yesNo = (v: boolean) => (v ? 'Yes' : 'No')
+  const questions = event.volunteer_questions ?? []
+  const answer = (r: EventVolunteer, id: string) => {
+    const v = r.extra_answers?.[id]
+    return typeof v === 'boolean' ? yesNo(v) : (v ?? '')
+  }
   const csv = toCsv(
-    ['Submitted', 'Full name', 'Email', 'Phone', 'University', 'Course', 'Year of study', 'Area of residence', 'International licence', 'Has car', 'Commitment agreed', 'Message'],
-    rows.map((r) => [r.created_at, r.full_name, r.email, r.phone, r.university, r.course, r.year_of_study, r.area_of_residence, yesNo(r.has_license), yesNo(r.has_car), yesNo(r.commitment_agreed), r.message ?? '']),
+    ['Submitted', 'Full name', 'Email', 'Phone', 'University', 'Course', 'Year of study', 'Area of residence', 'International licence', 'Has car', 'Commitment agreed', ...questions.map((q) => q.label), 'Message'],
+    rows.map((r) => [r.created_at, r.full_name, r.email, r.phone, r.university, r.course, r.year_of_study, r.area_of_residence, yesNo(r.has_license), yesNo(r.has_car), yesNo(r.commitment_agreed), ...questions.map((q) => answer(r, q.id)), r.message ?? '']),
   )
   download(`${event.slug}-volunteers-${stamp()}.csv`, csv)
 }

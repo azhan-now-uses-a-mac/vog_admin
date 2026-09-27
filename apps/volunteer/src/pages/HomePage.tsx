@@ -66,6 +66,11 @@ export function HomePage() {
                       {event.volunteer_description ?? event.description}
                     </p>
                   ) : null}
+                  {event.volunteer_date || event.volunteer_location ? (
+                    <p className="mt-2 text-xs text-vog-brown/70">
+                      {[event.volunteer_date, event.volunteer_location].filter(Boolean).join(' · ')}
+                    </p>
+                  ) : null}
                   <p className="mt-3 text-xs font-medium uppercase tracking-wide text-vog-green">
                     Apply to volunteer
                   </p>

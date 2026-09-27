@@ -1,9 +1,23 @@
+export type QuestionType = 'text' | 'yes_no' | 'choice'
+export interface VolunteerQuestion {
+  id: string
+  label: string
+  type: QuestionType
+  required: boolean
+  options: string[]
+}
+
 export interface AdminEvent {
   id: string
   name: string
   slug: string
   description: string | null
   volunteer_description: string | null
+  volunteer_date: string | null
+  volunteer_location: string | null
+  volunteer_requirements: string | null
+  volunteer_spots: number | null
+  volunteer_questions: VolunteerQuestion[]
   qr_code_path: string | null
   qr_code_url: string | null
   bank_name: string | null
@@ -23,6 +37,11 @@ export interface EventFormValues {
   slug: string
   description: string
   volunteer_description: string
+  volunteer_date: string
+  volunteer_location: string
+  volunteer_requirements: string
+  volunteer_spots: string
+  volunteer_questions: VolunteerQuestion[]
   bank_name: string
   account_name: string
   account_number: string

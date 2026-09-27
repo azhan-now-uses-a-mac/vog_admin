@@ -8,11 +8,11 @@ import { TextField } from '@/components/ui/TextField'
 import { YesNoField } from '@/components/ui/YesNoField'
 import { toUserMessage } from '@/lib/errors'
 import { MAX_MESSAGE_LENGTH, validateVolunteerForm } from '@/lib/validation'
-import { VolunteerValidationError, submitVolunteer } from '@/services/volunteerService'
-import type { EventRecord } from '@/types/event'
-import { YEARS_OF_STUDY, type FieldErrors, type VolunteerFormValues, type VolunteerInsert } from '@/types/volunteer'
+import { VolunteerValidationError, packAnswers, submitVolunteer } from '@/services/volunteerService'
+import type { EventRecord, VolunteerQuestion } from '@/types/event'
+import { YEARS_OF_STUDY, type FieldErrors, type VolunteerFormValues, type VolunteerInsert, type YesNo } from '@/types/volunteer'
 
-const initialValues: VolunteerFormValues = { fullName: '', email: '', phone: '', university: '', course: '', yearOfStudy: '', areaOfResidence: '', hasLicense: '', hasCar: '', commitment: false, message: '' }
+const initialValues: VolunteerFormValues = { fullName: '', email: '', phone: '', university: '', course: '', yearOfStudy: '', areaOfResidence: '', hasLicense: '', hasCar: '', commitment: false, message: '', answers: {} }
 
 export function VolunteerForm({ event, onSuccess }: { event: EventRecord; onSuccess: (volunteer: VolunteerInsert) => void }) {
   const [values, setValues] = useState(initialValues)
@@ -23,14 +23,23 @@ export function VolunteerForm({ event, onSuccess }: { event: EventRecord; onSucc
   // No licence means no car question, so clear any earlier answer.
   function updateLicense(value: VolunteerFormValues['hasLicense']) { setValues((current) => ({ ...current, hasLicense: value, hasCar: value === 'yes' ? current.hasCar : '' })) }
   const hasLicense = values.hasLicense === 'yes'
+  function setAnswer(id: string, value: string) { setValues((current) => ({ ...current, answers: { ...current.answers, [id]: value } })) }
+  function renderQuestion(q: VolunteerQuestion) {
+    const id = `answer-${q.id}`; const value = values.answers[q.id] ?? ''; const error = errors[`answer:${q.id}`]
+    const label = q.required ? q.label : `${q.label} (optional)`
+    if (q.type === 'yes_no') return <YesNoField key={q.id} id={id} label={label} value={value as YesNo} onChange={(v) => setAnswer(q.id, v)} error={error} />
+    if (q.type === 'choice') return <SelectField key={q.id} id={id} label={label} options={q.options} placeholder="Select an option" value={value} onChange={(e) => setAnswer(q.id, e.target.value)} error={error} required={q.required} />
+    return <TextField key={q.id} id={id} label={label} value={value} onChange={(e) => setAnswer(q.id, e.target.value)} error={error} maxLength={500} required={q.required} />
+  }
   async function handleSubmit(nativeEvent: FormEvent<HTMLFormElement>) {
     nativeEvent.preventDefault(); setFormError(null)
     const nextErrors = validateVolunteerForm(values, event); setErrors(nextErrors)
     if (Object.keys(nextErrors).length) return
     setIsSubmitting(true)
     try {
-      const saved = await submitVolunteer(event.id, values)
-      const volunteer: VolunteerInsert = { id: saved.id, event_id: event.id, full_name: values.fullName.trim(), email: values.email.trim(), phone: values.phone.trim(), university: values.university.trim(), course: values.course.trim(), year_of_study: values.yearOfStudy, area_of_residence: values.areaOfResidence.trim(), has_license: hasLicense, has_car: hasLicense && values.hasCar === 'yes', commitment_agreed: values.commitment, message: values.message.trim() || null }
+      const questions = event.volunteer_questions ?? []
+      const saved = await submitVolunteer(event.id, values, questions)
+      const volunteer: VolunteerInsert = { id: saved.id, event_id: event.id, full_name: values.fullName.trim(), email: values.email.trim(), phone: values.phone.trim(), university: values.university.trim(), course: values.course.trim(), year_of_study: values.yearOfStudy, area_of_residence: values.areaOfResidence.trim(), has_license: hasLicense, has_car: hasLicense && values.hasCar === 'yes', commitment_agreed: values.commitment, message: values.message.trim() || null, extra_answers: packAnswers(questions, values.answers) }
       onSuccess(volunteer)
     } catch (error) {
       if (error instanceof VolunteerValidationError) setErrors(error.fields)
@@ -49,6 +58,7 @@ export function VolunteerForm({ event, onSuccess }: { event: EventRecord; onSucc
     <TextField id="areaOfResidence" label="Area of Residence" autoComplete="address-level2" value={values.areaOfResidence} onChange={(e) => update('areaOfResidence', e.target.value)} error={errors.areaOfResidence} required />
     <YesNoField id="hasLicense" label="Do you have a valid international driving licence?" value={values.hasLicense} onChange={updateLicense} error={errors.hasLicense} />
     {hasLicense ? <YesNoField id="hasCar" label="Do you have a car?" value={values.hasCar} onChange={(v) => update('hasCar', v)} error={errors.hasCar} /> : null}
+    {(event.volunteer_questions ?? []).map(renderQuestion)}
     <TextArea id="message" label="Message (optional)" value={values.message} onChange={(e) => update('message', e.target.value)} error={errors.message} maxLength={MAX_MESSAGE_LENGTH} placeholder="Anything you would like the organisers to know" />
     <CheckboxField id="commitment" checked={values.commitment} onChange={(v) => update('commitment', v)} error={errors.commitment} label="I understand that if I am selected, I will attend the event and follow the organisers' instructions to the best of my ability." />
     <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Submitting…' : 'Submit application'}</Button>

@@ -22,6 +22,7 @@ import {
   validateDonation,
   validateEvent,
   validateVolunteer,
+  type VolunteerQuestion,
 } from './validation'
 
 // --- CORS: the three sites, plus any localhost port for development ---------
@@ -50,6 +51,11 @@ type EventRow = {
   slug: string
   description: string | null
   volunteer_description: string | null
+  volunteer_date: string | null
+  volunteer_location: string | null
+  volunteer_requirements: string | null
+  volunteer_spots: number | null
+  volunteer_questions: VolunteerQuestion[]
   qr_code_path: string | null
   bank_name: string | null
   account_name: string | null
@@ -62,7 +68,8 @@ type EventRow = {
   created_at: string
 }
 
-const EVENT_COLUMNS = `id, name, slug, description, volunteer_description, qr_code_path, bank_name, account_name,
+const EVENT_COLUMNS = `id, name, slug, description, volunteer_description, volunteer_date,
+  volunteer_location, volunteer_requirements, volunteer_spots, volunteer_questions, qr_code_path, bank_name, account_name,
   account_number, payment_instructions, contact_name, contact_email, contact_phone,
   is_active, created_at`
 
@@ -107,8 +114,8 @@ app.get('/', (c) => c.json({ ok: true, service: 'vog api' }))
 // --- Public: events -----------------------------------------------------------
 
 app.get('/events', async (c) => {
-  const rows = await query<Pick<EventRow, 'id' | 'name' | 'slug' | 'description' | 'volunteer_description'>>(
-    `select id, name, slug, description, volunteer_description from public.events
+  const rows = await query<Pick<EventRow, 'id' | 'name' | 'slug' | 'description' | 'volunteer_description' | 'volunteer_date' | 'volunteer_location'>>(
+    `select id, name, slug, description, volunteer_description, volunteer_date, volunteer_location from public.events
      where is_active order by created_at desc`,
   )
   return c.json({ events: rows })
@@ -209,21 +216,21 @@ app.post('/volunteers', bodyLimit({ maxSize: 64 * 1024 }), async (c) => {
   if (!body) return c.json({ error: 'invalid_json' }, 400)
   if (!isUuid(body.eventId)) return c.json({ error: 'invalid_event' }, 400)
 
-  const { errors, value } = validateVolunteer(body)
-  if (Object.keys(errors).length > 0) return c.json({ error: 'invalid', fields: errors }, 422)
-
-  const [event] = await query<{ id: string; is_active: boolean }>(
-    'select id, is_active from public.events where id = $1',
+  const [event] = await query<{ id: string; is_active: boolean; volunteer_questions: VolunteerQuestion[] }>(
+    'select id, is_active, volunteer_questions from public.events where id = $1',
     [body.eventId],
   )
   if (!event) return c.json({ error: 'not_found' }, 404)
   if (!event.is_active) return c.json({ error: 'inactive' }, 410)
 
+  const { errors, value } = validateVolunteer(body, event.volunteer_questions ?? [])
+  if (Object.keys(errors).length > 0) return c.json({ error: 'invalid', fields: errors }, 422)
+
   const [row] = await query<{ id: string }>(
     `insert into public.volunteers
        (event_id, full_name, email, phone, university, course, area_of_residence,
-        year_of_study, has_license, has_car, commitment_agreed, message)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) returning id`,
+        year_of_study, has_license, has_car, commitment_agreed, message, extra_answers)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb) returning id`,
     [
       event.id,
       value.fullName,
@@ -237,6 +244,7 @@ app.post('/volunteers', bodyLimit({ maxSize: 64 * 1024 }), async (c) => {
       value.hasCar,
       value.commitment,
       value.message,
+      JSON.stringify(value.extraAnswers),
     ],
   )
   return c.json({ id: row.id }, 201)
@@ -270,6 +278,11 @@ async function saveEvent(body: Record<string, unknown>, id?: string) {
     value.slug,
     value.description,
     value.volunteer_description,
+    value.volunteer_date,
+    value.volunteer_location,
+    value.volunteer_requirements,
+    value.volunteer_spots,
+    JSON.stringify(value.volunteer_questions),
     value.qr_code_path,
     value.bank_name,
     value.account_name,
@@ -285,17 +298,20 @@ async function saveEvent(body: Record<string, unknown>, id?: string) {
     const rows = id
       ? await query<EventRow>(
           `update public.events set name=$1, slug=$2, description=$3, volunteer_description=$4,
-             qr_code_path=$5, bank_name=$6, account_name=$7, account_number=$8,
-             payment_instructions=$9, contact_name=$10, contact_email=$11, contact_phone=$12,
-             is_active=$13
-           where id = $14 returning ${EVENT_COLUMNS}`,
+             volunteer_date=$5, volunteer_location=$6, volunteer_requirements=$7,
+             volunteer_spots=$8, volunteer_questions=$9::jsonb, qr_code_path=$10,
+             bank_name=$11, account_name=$12, account_number=$13, payment_instructions=$14,
+             contact_name=$15, contact_email=$16, contact_phone=$17, is_active=$18
+           where id = $19 returning ${EVENT_COLUMNS}`,
           [...params, id],
         )
       : await query<EventRow>(
           `insert into public.events (name, slug, description, volunteer_description,
-             qr_code_path, bank_name, account_name, account_number, payment_instructions,
-             contact_name, contact_email, contact_phone, is_active)
-           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) returning ${EVENT_COLUMNS}`,
+             volunteer_date, volunteer_location, volunteer_requirements, volunteer_spots,
+             volunteer_questions, qr_code_path, bank_name, account_name, account_number,
+             payment_instructions, contact_name, contact_email, contact_phone, is_active)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+           returning ${EVENT_COLUMNS}`,
           params,
         )
     if (rows.length === 0) return { status: 404 as const, body: { error: 'not_found' } }
@@ -407,7 +423,7 @@ admin.get('/reports/volunteers', async (c) => {
   const rows = await query(
     `select v.created_at, e.name as event_name, e.slug as event_slug, v.full_name, v.email,
             v.phone, v.university, v.course, v.year_of_study, v.area_of_residence,
-            v.has_license, v.has_car, v.commitment_agreed, v.message
+            v.has_license, v.has_car, v.commitment_agreed, v.message, v.extra_answers
      from public.volunteers v join public.events e on e.id = v.event_id
      order by v.created_at desc`,
   )
@@ -450,7 +466,7 @@ admin.get('/events/:id/volunteers', async (c) => {
   if (!isUuid(id)) return c.json({ error: 'invalid_id' }, 400)
   const rows = await query(
     `select id, created_at, full_name, email, phone, university, course, year_of_study,
-            area_of_residence, has_license, has_car, commitment_agreed, message
+            area_of_residence, has_license, has_car, commitment_agreed, message, extra_answers
      from public.volunteers where event_id = $1 order by created_at desc`,
     [id],
   )

@@ -5,6 +5,7 @@ import { TextField } from '@/components/ui/TextField'
 import { TextArea } from '@/components/ui/TextArea'
 import { isValidEmail, isValidSlug, slugify } from '@/lib/validation'
 import { uploadEventImage } from '@/services/storageService'
+import { VolunteerQuestionsEditor } from '@/components/admin/VolunteerQuestionsEditor'
 import type { AdminEvent, EventFormValues } from '@/types/event'
 
 const EMPTY: EventFormValues = {
@@ -12,6 +13,11 @@ const EMPTY: EventFormValues = {
   slug: '',
   description: '',
   volunteer_description: '',
+  volunteer_date: '',
+  volunteer_location: '',
+  volunteer_requirements: '',
+  volunteer_spots: '',
+  volunteer_questions: [],
   bank_name: '',
   account_name: '',
   account_number: '',
@@ -29,6 +35,11 @@ function fromEvent(event: AdminEvent): EventFormValues {
     slug: event.slug,
     description: event.description ?? '',
     volunteer_description: event.volunteer_description ?? '',
+    volunteer_date: event.volunteer_date ?? '',
+    volunteer_location: event.volunteer_location ?? '',
+    volunteer_requirements: event.volunteer_requirements ?? '',
+    volunteer_spots: event.volunteer_spots ? String(event.volunteer_spots) : '',
+    volunteer_questions: event.volunteer_questions ?? [],
     bank_name: event.bank_name ?? '',
     account_name: event.account_name ?? '',
     account_number: event.account_number ?? '',
@@ -125,10 +136,20 @@ export function EventForm({
       setError('Contact email is not valid.')
       return
     }
+    const badQuestion = values.volunteer_questions.findIndex(
+      (q) => !q.label.trim() || (q.type === 'choice' && q.options.length < 2),
+    )
+    if (badQuestion !== -1) {
+      setError(`Extra question ${badQuestion + 1} needs a label${values.volunteer_questions[badQuestion].type === 'choice' ? ' and at least two options' : ''}.`)
+      return
+    }
 
     setSubmitting(true)
     try {
-      await onSubmit(values)
+      await onSubmit({
+        ...values,
+        volunteer_questions: values.volunteer_questions.map((q) => ({ ...q, label: q.label.trim() })),
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the event.')
       setSubmitting(false)
@@ -144,7 +165,7 @@ export function EventForm({
         {volunteerOnly
           ? 'Edit volunteer details'
           : isEdit
-            ? 'Edit event details'
+            ? 'Edit donation & event details'
             : 'New event'}
       </h2>
       <p className="mt-1 text-sm text-vog-brown/70">
@@ -156,9 +177,9 @@ export function EventForm({
           </>
         ) : (
           <>
-            The form lives at{' '}
+            The event lives at{' '}
             <span className="font-mono">/{values.slug || 'your-slug'}</span> on
-            both the donate and volunteer sites.
+            both sites. {isEdit ? '' : 'Fill in the donation details first, then the volunteer details below.'}
           </>
         )}
       </p>
@@ -171,6 +192,9 @@ export function EventForm({
 
       {volunteerOnly ? null : (
         <div className="mt-5 space-y-4">
+          {!isEdit ? (
+            <h3 className="text-base font-semibold text-vog-brown">1. Donation details</h3>
+          ) : null}
           <TextField
             id="name"
             label="Event name"
@@ -200,17 +224,56 @@ export function EventForm({
       )}
 
       {showVolunteer ? (
-        <fieldset className="mt-6 space-y-4 rounded-2xl border border-vog-brown/10 p-4">
+        <fieldset className="mt-6 space-y-4 rounded-2xl border border-vog-green/40 bg-vog-cream/30 p-4">
           <legend className="px-1 text-sm font-semibold text-vog-brown">
-            Volunteer site
+            {isEdit ? 'Volunteer site' : '2. Volunteer details'}
           </legend>
+          <p className="text-xs text-vog-brown/60">
+            Everything here is shown only on the volunteer site and its application form.
+          </p>
           <TextArea
             id="volunteer_description"
             label="Volunteer description"
             value={values.volunteer_description}
             onChange={(e) => set('volunteer_description', e.target.value)}
             hint="Leave blank to reuse the donation description on the volunteer site."
-            placeholder="Shown above the volunteer form. Include dates, location, and any requirements."
+            placeholder="What volunteers will be doing and why it matters."
+          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField
+              id="volunteer_date"
+              label="Date & time"
+              value={values.volunteer_date}
+              onChange={(e) => set('volunteer_date', e.target.value)}
+              placeholder="e.g. Sat 14 Nov, 9:00 AM – 1:00 PM"
+            />
+            <TextField
+              id="volunteer_spots"
+              label="Volunteers needed"
+              type="number"
+              min={1}
+              value={values.volunteer_spots}
+              onChange={(e) => set('volunteer_spots', e.target.value)}
+              placeholder="e.g. 20"
+            />
+          </div>
+          <TextField
+            id="volunteer_location"
+            label="Location / meeting point"
+            value={values.volunteer_location}
+            onChange={(e) => set('volunteer_location', e.target.value)}
+            placeholder="e.g. Rumah Kasih Harmoni, Kuala Lumpur — meet at the main gate"
+          />
+          <TextArea
+            id="volunteer_requirements"
+            label="Requirements & what to bring"
+            value={values.volunteer_requirements}
+            onChange={(e) => set('volunteer_requirements', e.target.value)}
+            placeholder={'One per line, e.g.\nModest clothing\nBring your own water bottle\nMust be 18+'}
+          />
+          <VolunteerQuestionsEditor
+            questions={values.volunteer_questions}
+            onChange={(questions) => set('volunteer_questions', questions)}
           />
         </fieldset>
       ) : null}
