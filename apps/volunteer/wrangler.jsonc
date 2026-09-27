@@ -2,6 +2,8 @@
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "vog-volunteer",
   "compatibility_date": "2026-09-27",
+  // Serve on the free vog-volunteer.<account>.workers.dev address.
+  "workers_dev": true,
   "assets": {
     "directory": "./dist",
     // React Router handles /<slug>; unknown paths must serve index.html.
