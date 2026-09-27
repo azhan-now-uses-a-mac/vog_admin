@@ -8,26 +8,45 @@ function requireAuth() {
   return authClient
 }
 
+// The Neon Auth client throws (AuthApiError) on any non-2xx response rather
+// than returning `{ error }`, so both shapes have to be handled or every
+// failure, including a wrong password, shows up as a generic message.
+async function authCall<T extends { error?: { message?: string } | null }>(
+  call: () => Promise<T>,
+  fallback: string,
+): Promise<void> {
+  let result: T
+  try {
+    result = await call()
+  } catch (err) {
+    if (err instanceof AppError) throw err
+    const message = err instanceof Error && err.message ? err.message : fallback
+    throw new AppError(message, err)
+  }
+  if (result.error) throw new AppError(result.error.message || fallback, result.error)
+}
+
 // --- Auth ------------------------------------------------------------------
 
 export async function signIn(email: string, password: string): Promise<void> {
-  const { error } = await requireAuth().signIn.email({ email: email.trim(), password })
-  if (error) throw new AppError(error.message || 'Incorrect email or password.', error)
+  await authCall(
+    () => requireAuth().signIn.email({ email: email.trim(), password }),
+    'Incorrect email or password.',
+  )
   notifyAuthChange()
 }
 
 export async function signUp(name: string, email: string, password: string): Promise<void> {
-  const { error } = await requireAuth().signUp.email({
-    name: name.trim(),
-    email: email.trim(),
-    password,
-  })
-  if (error) throw new AppError(error.message || 'Could not create the account.', error)
+  await authCall(
+    () => requireAuth().signUp.email({ name: name.trim(), email: email.trim(), password }),
+    'Could not create the account.',
+  )
   notifyAuthChange()
 }
 
 export async function signOut(): Promise<void> {
-  await authClient?.signOut()
+  // A failed sign-out call must not keep the user "signed in" on screen.
+  await authClient?.signOut().catch(() => null)
   notifyAuthChange()
 }
 
@@ -78,20 +97,15 @@ export async function setEventActive(id: string, isActive: boolean): Promise<voi
 // custom SMTP, so the admin uses the code flow.
 
 export async function requestPasswordReset(email: string): Promise<void> {
-  const { error } = await requireAuth().emailOtp.requestPasswordReset({ email: email.trim() })
-  if (error) throw new AppError(error.message || 'Could not send the reset code.', error)
+  await authCall(
+    () => requireAuth().emailOtp.requestPasswordReset({ email: email.trim() }),
+    'Could not send the reset code.',
+  )
 }
 
 export async function resetPassword(email: string, code: string, password: string): Promise<void> {
-  const { error } = await requireAuth().emailOtp.resetPassword({
-    email: email.trim(),
-    otp: code.trim(),
-    password,
-  })
-  if (error) {
-    throw new AppError(
-      error.message || 'That code did not work. Check it, or request a new one.',
-      error,
-    )
-  }
+  await authCall(
+    () => requireAuth().emailOtp.resetPassword({ email: email.trim(), otp: code.trim(), password }),
+    'That code did not work. Check it, or request a new one.',
+  )
 }

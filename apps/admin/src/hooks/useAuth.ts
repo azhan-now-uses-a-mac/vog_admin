@@ -17,7 +17,8 @@ export function useAuth() {
         return
       }
       setStatus('loading')
-      const { data } = await authClient.getSession()
+      // getSession throws on a non-2xx response; treat that as signed out.
+      const { data } = await authClient.getSession().catch(() => ({ data: null }))
       if (cancelled) return
       if (!data?.user) {
         setEmail(null)
