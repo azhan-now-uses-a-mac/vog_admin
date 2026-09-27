@@ -414,6 +414,49 @@ admin.get('/reports/volunteers', async (c) => {
   return c.json({ rows })
 })
 
+// --- Admin: per-event submissions (shown in the admin dashboard) --------------
+
+admin.get('/events/:id/donations', async (c) => {
+  const id = c.req.param('id')
+  if (!isUuid(id)) return c.json({ error: 'invalid_id' }, 400)
+  const rows = await query<{
+    id: string
+    created_at: string
+    full_name: string
+    email: string
+    phone: string
+    amount: string
+    currency: string
+    payment_method: string
+    message: string | null
+    proof_storage_path: string
+  }>(
+    `select id, created_at, full_name, email, phone, amount::text as amount, currency,
+            payment_method, message, proof_storage_path
+     from public.donations where event_id = $1 order by created_at desc`,
+    [id],
+  )
+  const withLinks = await Promise.all(
+    rows.map(async (r) => ({
+      ...r,
+      proof_url: await signedUrl(PROOFS_BUCKET, r.proof_storage_path, PROOF_LINK_SECONDS),
+    })),
+  )
+  return c.json({ rows: withLinks })
+})
+
+admin.get('/events/:id/volunteers', async (c) => {
+  const id = c.req.param('id')
+  if (!isUuid(id)) return c.json({ error: 'invalid_id' }, 400)
+  const rows = await query(
+    `select id, created_at, full_name, email, phone, university, course, year_of_study,
+            area_of_residence, has_license, has_car, commitment_agreed, message
+     from public.volunteers where event_id = $1 order by created_at desc`,
+    [id],
+  )
+  return c.json({ rows })
+})
+
 app.route('/admin', admin)
 
 export default app

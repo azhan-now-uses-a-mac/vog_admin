@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { EventForm } from '@/components/admin/EventForm'
+import { SubmissionsPage } from '@/pages/SubmissionsPage'
 import { PageShell } from '@/components/layout/PageShell'
 import { SITE } from '@/config/site'
 import {
@@ -14,6 +15,7 @@ import {
 import { exportDonations, exportVolunteers } from '@/services/reportService'
 import { toUserMessage } from '@/lib/errors'
 import type { AdminEvent, EventFormValues } from '@/types/event'
+import type { SubmissionKind } from '@/types/submissions'
 
 type Editing =
   | { mode: 'new' }
@@ -29,6 +31,7 @@ export function DashboardPage({ email }: DashboardPageProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState<Editing>(null)
+  const [viewing, setViewing] = useState<{ event: AdminEvent; kind: SubmissionKind } | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [exporting, setExporting] = useState<'donations' | 'volunteers' | null>(
     null,
@@ -93,6 +96,17 @@ export function DashboardPage({ email }: DashboardPageProps) {
     } finally {
       setBusyId(null)
     }
+  }
+
+  if (viewing) {
+    return (
+      <SubmissionsPage
+        event={viewing.event}
+        kind={viewing.kind}
+        email={email}
+        onBack={() => setViewing(null)}
+      />
+    )
   }
 
   if (editing) {
@@ -220,6 +234,22 @@ export function DashboardPage({ email }: DashboardPageProps) {
                       >
                         Open on volunteer ↗
                       </a>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setViewing({ event, kind: 'donations' })}
+                        className="rounded-lg bg-vog-cream px-3 py-1.5 text-xs font-semibold text-vog-brown transition hover:bg-vog-green/15 hover:text-vog-pattern"
+                      >
+                        See donation details
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewing({ event, kind: 'volunteers' })}
+                        className="rounded-lg bg-vog-cream px-3 py-1.5 text-xs font-semibold text-vog-brown transition hover:bg-vog-green/15 hover:text-vog-pattern"
+                      >
+                        See volunteer details
+                      </button>
                     </div>
                   </div>
 

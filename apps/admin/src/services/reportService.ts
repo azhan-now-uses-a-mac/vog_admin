@@ -45,13 +45,13 @@ function csvCell(value: unknown): string {
   return safe
 }
 
-function toCsv(headers: string[], rows: Array<Array<unknown>>): string {
+export function toCsv(headers: string[], rows: Array<Array<unknown>>): string {
   const lines = [headers, ...rows].map((row) => row.map(csvCell).join(','))
   // UTF-8 BOM so Excel opens accented characters correctly.
   return '﻿' + lines.join('\r\n')
 }
 
-function download(filename: string, csv: string) {
+export function download(filename: string, csv: string) {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -63,7 +63,7 @@ function download(filename: string, csv: string) {
   URL.revokeObjectURL(url)
 }
 
-const stamp = () => new Date().toISOString().slice(0, 10)
+export const stamp = () => new Date().toISOString().slice(0, 10)
 
 async function fetchRows<T>(path: string, label: string): Promise<T[]> {
   const { status, data } = await apiFetch<{ rows: T[] }>(path)
