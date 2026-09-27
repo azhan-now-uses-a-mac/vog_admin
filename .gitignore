@@ -10,6 +10,8 @@ apps/*/dist
 .env
 .env.*
 !.env.example
+# Public build-time URLs only (no secrets); Cloudflare builds need them.
+!.env.production
 
 # logs
 *.log
