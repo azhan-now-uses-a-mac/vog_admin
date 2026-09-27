@@ -9,7 +9,7 @@
     // React Router handles /<slug>; unknown paths must serve index.html.
     "not_found_handling": "single-page-application"
   },
-  "observability": { "enabled": true }
-  // Once avisionofgood.com is on Cloudflare, uncomment to attach the domain:
-  // "routes": [{ "pattern": "admin.avisionofgood.com", "custom_domain": true }]
+  "observability": { "enabled": true },
+  // avisionofgood.com is on Cloudflare; this creates the DNS record on deploy.
+  "routes": [{ "pattern": "admin.avisionofgood.com", "custom_domain": true }]
 }
